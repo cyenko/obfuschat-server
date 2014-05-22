@@ -12,6 +12,8 @@ namespace ObfusChat
 {
     public partial class MainWindow : Form
     {
+        //GLOBAL VARIABLES
+        ObfusChatServer server;
         public MainWindow()
         {
             InitializeComponent();
@@ -24,7 +26,7 @@ namespace ObfusChat
 
         private void btnStart_Click(object sender, EventArgs e)
         {
-
+            server = new ObfusChatServer();
         }
 
         private void btnStop_Click(object sender, EventArgs e)
