@@ -13,7 +13,7 @@ public class ObfusChatServer
     TcpListener server;
 	public ObfusChatServer() 
 	{
-        server = new TcpListener(IPAddress.Parse("192.168.1.70"),8080);
+        server = new TcpListener(IPAddress.Parse("192.168.1.83"),8080);
         try{
             server.Start();
             Console.WriteLine("Server started");
