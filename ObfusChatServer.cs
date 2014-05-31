@@ -11,12 +11,14 @@ public class ObfusChatServer
 {
     //PROPERTIES
     TcpListener server;
-	public ObfusChatServer() 
+    string localAddress = "192.168.1.83"; //Modify this as per local addressing needs
+
+    public ObfusChatServer() 
 	{
-        server = new TcpListener(IPAddress.Parse("192.168.1.83"),8080);
+        server = new TcpListener(IPAddress.Parse(localAddress),8080);
         try{
             server.Start();
-            Console.WriteLine("Server started");
+            Console.WriteLine("-------------------\nServer started");
 
         }
         catch(Exception E){
@@ -30,8 +32,8 @@ public class ObfusChatServer
             Byte [] inBytes = new Byte[newclient.Available];
             clientStream.Read(inBytes,0,inBytes.Length);
             String request = Encoding.UTF8.GetString(inBytes);
-            Console.WriteLine("REQUEST"+request);
-            DecodeIncomingData(inBytes);
+
+            //Console.WriteLine("Received Request: "+request);
             Byte[] decoded = new Byte[inBytes.Length];
             if (new Regex("^GET").IsMatch(request))
             {
@@ -46,17 +48,18 @@ public class ObfusChatServer
                         )
                     ) + Environment.NewLine
                     + Environment.NewLine); //Development standards require two newlines after the header
-                Console.WriteLine("Handshaking back.");
+                Console.WriteLine("Received Connection Initiation request, handshaking back.");
                 clientStream.Write(response, 0, response.Length);
-                Console.WriteLine(response);
+                //Console.WriteLine(response);
                 //Once this process is complete, we can start exchanging data
             }
-            else //Then it is not the handshake process, read and write stuff.
+            else //Then it is not the handshake process but a regular message. read and write stuff.
             {
-
+                DecodeIncomingData(inBytes);
                 //We send them a message back here.
-                Console.WriteLine("Sending message to client.");
-                Byte[] response = Encoding.UTF8.GetBytes("  " + "yenko"); //There must be two spaces to start the message
+                string inMessage = "yenko"; //Later hooked up to a client input
+                Console.WriteLine("SENDING MESSAGE: "+inMessage);
+                Byte[] response = Encoding.UTF8.GetBytes("  " + inMessage); //There must be two spaces to start the message
                 response[0] = 0x81; // denotes this is the final message and it is in text
                 response[1] = (byte)(response.Length - 2); // payload size = message - header size
                 clientStream.Write(response, 0, response.Length);
@@ -64,30 +67,43 @@ public class ObfusChatServer
             }
         }
     }
-    private string DecodeIncomingData(Byte[] inData)
+    private string DecodeIncomingData(Byte[] inData, bool debug=false)
     {
         string returnString = "";
         string bitString = "";
         foreach(Byte b in inData){
             bitString += Convert.ToString(b, 2);
         }
-        Console.WriteLine("Bitarray: " + bitString);
-        Console.WriteLine("Length of the bit array" + bitString.Length);
 
-        Console.WriteLine("OPCODE: " + bitString[4] + "" + bitString[5] + "" + bitString[6] + "" + bitString[7]);
-        Console.WriteLine("Masked? " + bitString[8]);
+
         string payloadLength = bitString.Substring(9, 7);
-        Console.WriteLine("Payload Length: "+ Convert.ToInt32(payloadLength,2));
+        if (debug)
+        {
+            Console.WriteLine("Printing request parameters");
+            Console.WriteLine(" - Bitarray: " + bitString);
+            Console.WriteLine(" - Length of the bit array: " + bitString.Length);
+            Console.WriteLine(" - OPCODE: " + bitString[4] + "" + bitString[5] + "" + bitString[6] + "" + bitString[7]);
+            Console.WriteLine(" - Masked: " + bitString[8]);
+            Console.WriteLine(" - Payload Length: " + Convert.ToInt32(payloadLength, 2));
 
+        }
         string strPayloadKey = bitString.Substring(16, 32);
         Byte[] keyByteArray = new Byte[4]; 
         Array.Copy(inData,2, keyByteArray, 0, 4);
-        Console.WriteLine("Payload key: " + strPayloadKey);
+
+        if (debug)
+        {
+            Console.WriteLine(" - Payload key: " + strPayloadKey);
+        }
 
         Byte[] payloadArray = new Byte[inData.Length - 6];
-        Console.WriteLine("Length: " + payloadArray.Length);
         Array.Copy(inData, 6, payloadArray,0, inData.Length-6);
-        Console.WriteLine("PAYLOAD: "+System.Text.Encoding.ASCII.GetString(payloadArray));
+        if (debug)
+        {
+            Console.WriteLine("Length of incoming message: " + payloadArray.Length);
+            Console.WriteLine(" - Encrypted Payload: " + System.Text.Encoding.ASCII.GetString(payloadArray));
+        }
+
         string resultStr = "";
         Byte[] decoded = new Byte[payloadArray.Length];
         for (int i = 0; i < payloadArray.Length; i++)
@@ -95,8 +111,7 @@ public class ObfusChatServer
             decoded[i] = (Byte)(payloadArray[i] ^ keyByteArray[i % 4]);
         }
         resultStr = System.Text.Encoding.UTF8.GetString(decoded);
-        Console.WriteLine("Printing str");
-        Console.WriteLine("STR:" + resultStr);
+        Console.WriteLine("MESSAGE RECEIVED:" + resultStr);
         return returnString;
 
     }
